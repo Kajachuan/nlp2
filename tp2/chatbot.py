@@ -1,5 +1,5 @@
 """
-Chatbot con Memoria Persistente usando LangChain y Groq
+Chatbot con Memoria Persistente usando LangChain, Pinecone y Groq
 =====================================================
 
 Este archivo implementa un chatbot con interfaz web usando Streamlit que:
@@ -12,19 +12,15 @@ Tecnologías utilizadas:
 - Streamlit: Para la interfaz web
 - LangChain: Para gestión de memoria y cadenas de conversación
 - Groq: Como proveedor de modelos LLM
+- Pinecone: Base de datos vectorial para contexto relevante
 - Python: Lenguaje de programación
 
-Autor: Clase VI - CEIA LLMIAG
-Curso: Large Language Models y Generative AI
-
 Instrucciones para ejecutar:
-    streamlit run chatbot_gestionada.py
-
-Requisitos:
-    pip install streamlit groq langchain langchain-groq
+    streamlit run chatbot.py
 
 Variables de entorno necesarias:
     GROQ_API_KEY: Tu clave API de Groq (obtener en https://console.groq.com)
+    PINECONE_API_KEY: Tu clave API de Pinecone (obtener en https://www.pinecone.io/)
 """
 
 # ========================================
@@ -38,10 +34,8 @@ import os                      # Para acceso a variables de entorno
 
 from langchain_core.prompts import (
     ChatPromptTemplate,           # Template para estructurar mensajes de chat
-    HumanMessagePromptTemplate,   # Template específico para mensajes humanos
     MessagesPlaceholder,          # Marcador de posición para el historial
 )
-from langchain_core.messages import SystemMessage  # Mensajes del sistema
 from langchain_groq import ChatGroq              # Integración LangChain-Groq
 from langchain_core.runnables import RunnableWithMessageHistory
 from langchain_core.chat_history import InMemoryChatMessageHistory
@@ -49,7 +43,6 @@ from langchain_huggingface import HuggingFaceEmbeddings  # Modelo de embeddings
 from langchain_pinecone import PineconeVectorStore # Integración LangChain-Pinecone
 from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
-from pinecone import Pinecone # Cliente Pinecone para DB vectorial
 
 def main():
     """
@@ -183,13 +176,7 @@ def main():
     # ========================================
     
     # Crear el campo de entrada para las preguntas del usuario
-    st.markdown("### 💬 Haz tu pregunta:")
-    user_question = st.text_input(
-        "Escribe tu mensaje aquí:",
-        placeholder="Por ejemplo: ¿Cuál es el nombre completo de Kevin?",
-        label_visibility="collapsed"
-    )
-
+    user_question = st.chat_input("Escribe tu mensaje aquí...")
 
     # ========================================
     # CONFIGURACIÓN DEL MODELO DE LENGUAJE
@@ -234,7 +221,7 @@ def main():
     # ========================================
 
     # Si el usuario ha hecho una pregunta,
-    if user_question and user_question.strip():
+    if user_question:
 
         # Mostrar indicador de carga mientras se procesa
         with st.spinner('🤔 El chatbot está pensando...'):
@@ -305,23 +292,24 @@ def main():
                 # ALMACENAMIENTO Y VISUALIZACIÓN
                 # ========================================
                 
-                # Crear un objeto mensaje para almacenar en el historial
-                message = {'humano': user_question, 'IA': response}
-                
-                # Agregar el mensaje al historial de la sesión
-                st.session_state.historial_chat.append(message)
+                st.session_state.historial_chat.append({"role": "user", "content": user_question})
+                st.session_state.historial_chat.append({"role": "bot", "content": response})
                 
                 # ========================================
                 # MOSTRAR LA CONVERSACIÓN
                 # ========================================
                 
                 # Mostrar la respuesta actual destacada
-                st.markdown("### 🤖 Respuesta:")
-                st.markdown(f"""
-                <div style="background-color: #1e1e1e; color: white; padding: 15px; border-radius: 10px; border-left: 4px solid #4ea1ff;">
-                    {response}
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown("### 💬 Conversación:")
+
+                for msg in st.session_state.historial_chat:
+                    role = msg["role"]
+                    content = msg["content"]
+
+                    if role == "user":
+                        st.chat_message("user").markdown(content)
+                    else:
+                        st.chat_message("assistant").markdown(content)
                 
                 # Información adicional sobre la respuesta
                 st.caption(f"📊 Modelo: {model} | 🧠 Memoria: {conversational_memory_length} mensajes")
@@ -330,40 +318,6 @@ def main():
                 # Manejo de errores durante el procesamiento
                 st.error(f"❌ Error al procesar la pregunta: {str(e)}")
                 st.info("💡 Verifica tu conexión a internet y la configuración de la API")
-
-    # ========================================
-    # INFORMACIÓN ADICIONAL
-    # ========================================
-    
-    # Panel expandible con información educativa
-    with st.expander("📚 Información Técnica"):
-        st.markdown("""
-        **¿Cómo funciona este chatbot?**
-        
-        1. **Memoria Conversacional**: Utiliza `ConversationBufferWindowMemory` para recordar contexto
-        2. **Templates de Prompts**: Estructura los mensajes de manera consistente
-        3. **Cadenas LLM**: `LLMChain` conecta el modelo con la lógica de conversación
-        4. **Estado de Sesión**: Streamlit mantiene el historial durante la sesión
-        5. **Integración Groq**: Acceso rápido a modelos de lenguaje modernos
-        6. **Base de Datos Vectorial**: Pinecone almacena y recupera contexto relevante
-        
-        **Conceptos Clave:**
-        - **System Prompt**: Define la personalidad del chatbot
-        - **Memory Window**: Controla cuánto contexto previo se incluye
-        - **Token Limits**: Gestiona el costo y velocidad de las respuestas
-        - **Model Selection**: Diferentes modelos para diferentes necesidades
-        
-        **Arquitectura del Sistema:**
-        ```
-        Usuario → Streamlit → LangChain → Groq → LLM → Respuesta
-                     ↓
-               Session State (Memoria)
-        ```
-        """)
-    
-    # Pie de página con información
-    st.markdown("---")
-    st.markdown("**📖 TP2 - NLP2** | Chatbot de CV de Kevin Cajachuán")
 
 
 if __name__ == "__main__":
