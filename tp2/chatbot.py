@@ -107,23 +107,7 @@ def main():
     st.sidebar.title('⚙️ Configuración del Chatbot')
     st.sidebar.markdown("---")
     
-    # Selector de modelo LLM disponible en Groq
-    st.sidebar.subheader("🧠 Modelo de Lenguaje")
-    model = st.sidebar.selectbox(
-        'Elige un modelo:',
-        [
-            'llama-3.1-8b-instant',   # Reemplazo recomendado para 8B
-            'llama-3.3-70b-versatile' # Reemplazo recomendado para 70B
-        ],
-        help="Diferentes modelos tienen distintas capacidades y velocidades"
-    )
-    
-    # Información sobre el modelo seleccionado
-    model_info = {
-        'llama-3.1-8b-instant': "🦙 Llama 3.1 8B Instant: excelente precio-rendimiento y baja latencia",
-        'llama-3.3-70b-versatile': "🦙 Llama 3.3 70B Versatile: mayor calidad general"
-    }
-    st.sidebar.info(model_info.get(model, "Modelo seleccionado"))
+    model = 'llama-3.1-8b-instant'
     
     # Control deslizante para la longitud de memoria
     st.sidebar.subheader("🧠 Configuración de Memoria")
